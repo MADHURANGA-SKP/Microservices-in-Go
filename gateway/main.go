@@ -2,39 +2,55 @@ package main
 
 import (
 	common "common"
-	pb "common/api"
+	"common/discovery"
+	"common/discovery/consul"
+	"context"
+	"gatway/gateway"
 	"log"
 	"net/http"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"time"
 )
 
 var (
+	serviceName = "gateway"
 	httpAddr = common.EnvString("HTTP_ADDR",":8080")
-	orderServiceAddr = "localhost:2000"
+	consulAddr = common.EnvString("CUNSL_ADDR","localhost:8500")
 )
 
 func main(){
-
-	conn, err := grpc.NewClient(orderServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil{
-		log.Fatalf("failed to dial server: %v", err)
+	registry, err := consul.NewRegistory(consulAddr, serviceName)
+	if err != nil {
+		panic(err)
 	}
-	defer conn.Close()
 
-	log.Println("Dialing orders service at", orderServiceAddr)
+	ctx := context.Background()
+	instanceID := discovery.GenerateInstanceID(serviceName)
+	if err := registry.Register(ctx, instanceID, serviceName, httpAddr); err != nil {
+		panic(err)
+	}
 
-	c := pb.NewOrderServiceClient(conn)
+	go func ()  {
+		for {
+			if err := registry.HealthCheck(instanceID, serviceName); err != nil {
+				log.Fatal("failed to health check")
+			}
+			time.Sleep(time.Second * 1)
+		}
+	} ()
 
+	defer registry.DeRegister(ctx, instanceID, serviceName)
 
 	mux := http.NewServeMux()
-	handler := NewHandler(c)
+
+
+	OrdersGateway := gateway.NewGRPCGatway(registry)
+
+	handler := NewHandler(OrdersGateway)
 	handler.registerRoutes(mux)
 
 	log.Printf("starting http server at %s", httpAddr)
 
 	if err := http.ListenAndServe(httpAddr, mux); err != nil {
-		log.Fatal("failed to start the server")
+		log.Fatal("failed to start http server")
 	}
 }

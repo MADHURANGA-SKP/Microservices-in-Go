@@ -4,6 +4,7 @@ import (
 	"common"
 	pb "common/api"
 	"errors"
+	"gatway/gateway"
 	"net/http"
 
 	"google.golang.org/grpc/codes"
@@ -11,11 +12,11 @@ import (
 )
 
 type handler struct {
-	client pb.OrderServiceClient
+	gateway gateway.OrdersGateway
 }
 
-func NewHandler(client pb.OrderServiceClient) *handler{
-	return &handler{client}
+func NewHandler(gateway gateway.OrdersGateway) *handler{
+	return &handler{gateway}
 }
 
 func (h *handler) registerRoutes(mux *http.ServeMux) {
@@ -31,12 +32,12 @@ func (h *handler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 
-if err := validateItems(items); err != nil {
-	common.WriteError(w, http.StatusBadRequest, err.Error())
-	return
-}
+	if err := validateItems(items); err != nil {
+		common.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	o, err := h.client.CreateOrder(r.Context(), &pb.CreateOrderRequest{
+	o, err := h.gateway.CreateOrder(r.Context(), &pb.CreateOrderRequest{
 		CustomerID: customerID,
 		Items: items,
 	})
