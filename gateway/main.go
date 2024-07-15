@@ -9,16 +9,18 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 var (
 	serviceName = "gateway"
 	httpAddr = common.EnvString("HTTP_ADDR",":8080")
-	consulAddr = common.EnvString("CUNSL_ADDR","localhost:8500")
+	consulAddr = common.EnvString("CONSUL_ADDR","localhost:8500")
 )
 
-func main(){
-	registry, err := consul.NewRegistory(consulAddr, serviceName)
+func main() {
+	registry, err := consul.NewRegistry(consulAddr, serviceName)
 	if err != nil {
 		panic(err)
 	}
@@ -29,28 +31,27 @@ func main(){
 		panic(err)
 	}
 
-	go func ()  {
+	go func() {
 		for {
-			if err := registry.HealthCheck(instanceID, serviceName); err != nil {
+			if err := registry.HealthCheck(ctx, instanceID, serviceName); err != nil {
 				log.Fatal("failed to health check")
 			}
 			time.Sleep(time.Second * 1)
 		}
-	} ()
+	}()
 
 	defer registry.DeRegister(ctx, instanceID, serviceName)
 
 	mux := http.NewServeMux()
 
+	ordersGateway := gateway.NewGRPCGateway(registry)
 
-	OrdersGateway := gateway.NewGRPCGatway(registry)
-
-	handler := NewHandler(OrdersGateway)
+	handler := NewHandler(ordersGateway)
 	handler.registerRoutes(mux)
 
-	log.Printf("starting http server at %s", httpAddr)
+	log.Printf("Starting HTTP server at %s", httpAddr)
 
 	if err := http.ListenAndServe(httpAddr, mux); err != nil {
-		log.Fatal("failed to start http server")
+		log.Fatal("Failed to start http server")
 	}
 }

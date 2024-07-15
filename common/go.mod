@@ -4,6 +4,7 @@ go 1.22.1
 
 require (
 	github.com/hashicorp/consul/api v1.26.1
+	github.com/rabbitmq/amqp091-go v1.10.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 )

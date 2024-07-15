@@ -20,11 +20,11 @@ func NewHandler(gateway gateway.OrdersGateway) *handler{
 }
 
 func (h *handler) registerRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/customers/{customerID}/ordrs", h.HandleCreateOrder)
-}
+	mux.HandleFunc("POST /api/customers/{customerID}/orders", h.HandleCreateOrder)}
 
 func (h *handler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	customerID := r.PathValue("customerID")
+	
 
 	var items []*pb.ItemsWithQuantity
 	if err := common.ReadJSON(r, &items); err != nil {

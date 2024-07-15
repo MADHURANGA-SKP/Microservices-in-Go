@@ -6,6 +6,7 @@ import (
 	"context"
 	"log"
 )
+
 type gateway struct {
 	registry discovery.Registry
 }
