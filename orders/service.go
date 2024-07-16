@@ -5,30 +5,45 @@ import (
 	pb "common/api"
 	"context"
 	"log"
+	"orders/gateway"
 )
 
 type Service struct {
 	store OrderStore
+	gateway gateway.StockGateway
 }
 
-func NewService(store OrderStore) *Service {
-	return &Service{store}
+func NewService(store OrderStore, gateway gateway.StockGateway) *Service {
+	return &Service{store,gateway}
 }
 
-func(s *Service) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest) (*pb.Order, error) {
-	items, err := s.ValidateOrder(ctx, p)
+func (s *Service) UpdateOrder(ctx context.Context, o *pb.Order) (*pb.Order, error) {
+	err := s.store.Update(ctx, o.ID, o)
+	if err != nil {
+		return nil, err
+	}
+
+	return o, nil
+}
+
+func (s *Service) GetOrder(ctx context.Context, p *pb.GetOrderRequest) (*pb.Order, error) {
+	return s.store.Get(ctx, p.OrderID, p.CustomerID)
+}
+
+func(s *Service) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest, items []*pb.Item) (*pb.Order, error) {
+	id , err := s.store.Create(ctx, p, items)
 	if err != nil {
 		return nil, err
 	}
 
 	o := &pb.Order{
-		ID: "42",
+		ID: id,
 		CustomerID: p.CustomerID,
-		Status: "pending",
+		Status: "pennding",
 		Items: items,
 	}
 
-	return o, nil
+	return o,nil
 }
 
 func (s *Service) ValidateOrder(ctx context.Context, p *pb.CreateOrderRequest) ([]*pb.Item, error) {

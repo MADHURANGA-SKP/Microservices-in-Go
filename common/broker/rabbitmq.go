@@ -25,7 +25,7 @@ func Connect(user, pass, host, port string) (*amqp.Channel, func() error ){
 		log.Fatal(err)
 	}
 
-	err = ch.ExchangeDeclare(OrderCreatedPaid, "fanout", true, false, false, false, nil)
+	err = ch.ExchangeDeclare(OrderPaidEvent, "fanout", true, false, false, false, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

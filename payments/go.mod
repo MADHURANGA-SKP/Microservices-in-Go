@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/stripe/stripe-go v70.15.0+incompatible // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect

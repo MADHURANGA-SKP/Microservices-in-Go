@@ -8,6 +8,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"orders/gateway"
 	"time"
 
 	"go.uber.org/zap"
@@ -65,9 +66,11 @@ func main() {
 	defer l.Close()
 
 	store := NewStore()
-	svc := NewService(store)
+	gateway := gateway.NewGateway(registry)
+	svc := NewService(store, gateway)
 
 	NewGRPCHandler(grpcServer, svc, ch) 
+
 
 	log.Println("GRPC server started at : ", grpcAddr)
 

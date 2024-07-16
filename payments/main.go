@@ -8,6 +8,8 @@ import (
 	"context"
 	"log"
 	"net"
+	"net/http"
+	"payments/gateway"
 	stripeProcessor "payments/processor/stripe"
 	"time"
 
@@ -19,12 +21,14 @@ import (
 var (
 	serviceName = "payment"
 	grpcAddr = common.EnvString("GRPC_ADDR", "localhost:2001")
+	httpAddr = common.EnvString("GRPC_ADDR", "localhost:8081")
 	consulAddr = common.EnvString("CUNSL_ADDR","localhost:8500")
 	amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
 	amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
 	amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
 	amqpPort    = common.EnvString("RABBITMQ_PORT", "5672")
 	stripeKey    = common.EnvString("STRIPE_KEY", "sk_test_51Pcm84Rwz2fOefiNmTQSI0dSY5eUIMv84XF9lg862TBJ8SzTfAbC5MuIfn6pWB4vSpufr5FJxOdiqUmZ1fIUdj6G006GK0lcq1")
+	endpointStripeSecret = common.EnvString("STRIPE_ENDPOINT_SECRET", "whsec_32f21a7f8dc9d3af672bfab02ede0f6f22efd7fb91de868a3c47799d5855e706")
 )
 
 func main() {
@@ -63,11 +67,23 @@ func main() {
 	} ()
 
 	stripeProcessor:= stripeProcessor.NewProcessor()
-	svc := NewService(stripeProcessor)
+	gateway := gateway.NewGateway(registry)
+	svc := NewService(stripeProcessor, gateway)
 	amqpConsumer := NewConsumer(svc)
 
 
 	go amqpConsumer.Listen(ch)
+
+	mux := http.NewServeMux()
+	httpServer := NewPaymentHTTPHandler(ch)
+	httpServer.registerRoutes(mux)
+
+	go func() {
+		log.Printf("Stating http server at %s: ", httpAddr)
+		if err := http.ListenAndServe(httpAddr, mux); err != nil {
+			log.Fatal("faild to start http server")
+		}
+	}()
 
 	grpcServer := grpc.NewServer()
 
