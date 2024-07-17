@@ -11,13 +11,13 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type consumer struct {
-	service OrdersService
-}
+// type consumer struct {
+// 	service OrdersService
+// }
 
-func NewConsumer(service OrdersService) *consumer {
-	return &consumer{service}
-}
+// func NewConsumer(service OrdersService) *consumer {
+// 	return &consumer{service}
+// }
 
 func (c *consumer) Listen(ch *amqp.Channel) {
 	q, err := ch.QueueDeclare("", true, false, true, false, nil)

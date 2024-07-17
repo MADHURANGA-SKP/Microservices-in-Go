@@ -2,7 +2,6 @@ package main
 
 import (
 	"common"
-	"common/broker"
 	"common/discovery"
 	"common/discovery/consul"
 	"context"
@@ -19,10 +18,11 @@ var (
 	serviceName = "orders"
 	grpcAddr = common.EnvString("GRPC_ADDR", "localhost:2000")
 	consulAddr = common.EnvString("CUNSL_ADDR","localhost:8500")
-	amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
-	amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
-	amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
-	amqpPort    = common.EnvString("RABBITMQ_PORT", "5672")
+	kafkaPort    = common.EnvString("KAFKA_PORT", "localhost:29092")
+	// amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
+	// amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
+	// amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
+	// amqpPort    = common.EnvString("RABBITMQ_PORT", "5672")
 )
 
 func main() {
@@ -51,11 +51,10 @@ func main() {
 		}
 	}()
 
-	ch, close := broker.Connect(amqpUser,amqpPass, amqpHost, amqpPort)
-	defer func () {
-		close()
-		ch.Close()
-	} ()
+	_ , err = ConnectToKafka(kafkaPort)
+	if err != nil {
+		panic(err)
+	}
 
 	grpcServer := grpc.NewServer()
 
@@ -69,8 +68,7 @@ func main() {
 	gateway := gateway.NewGateway(registry)
 	svc := NewService(store, gateway)
 
-	NewGRPCHandler(grpcServer, svc, ch) 
-
+	NewGRPCHandler(grpcServer, svc) 
 
 	log.Println("GRPC server started at : ", grpcAddr)
 

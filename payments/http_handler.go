@@ -2,7 +2,7 @@ package main
 
 import (
 	pb "common/api"
-	"common/broker"
+	"common/kafka"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,17 +12,17 @@ import (
 	"os"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/IBM/sarama"
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/webhook"
 )
 
 type PaymentHTTPHAndler struct{
-	channel *amqp.Channel
+	consumer sarama.Consumer
 }
 
-func NewPaymentHTTPHandler(channel *amqp.Channel) *PaymentHTTPHAndler {
-	return &PaymentHTTPHAndler{channel}
+func NewPaymentHTTPHandler(consumer sarama.Consumer) *PaymentHTTPHAndler {
+	return &PaymentHTTPHAndler{consumer}
 }
 
 func (h *PaymentHTTPHAndler) registerRoutes(router *http.ServeMux) {
@@ -63,7 +63,7 @@ func (h *PaymentHTTPHAndler) handleCheckoutWebhook(w http.ResponseWriter, r *htt
 			orderID := session.Metadata["orderID"]
 			customerID := session.Metadata["customerID"]
 
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
 			o := &pb.Order{
@@ -72,7 +72,7 @@ func (h *PaymentHTTPHAndler) handleCheckoutWebhook(w http.ResponseWriter, r *htt
 				Status:      "paid",
 				PaymentLink: "",
 			}
-
+			fmt.Println("------------------------------------------")
 			marshalledOrder, err := json.Marshal(o)
 			if err != nil {
 				log.Fatal(err.Error())
@@ -85,14 +85,19 @@ func (h *PaymentHTTPHAndler) handleCheckoutWebhook(w http.ResponseWriter, r *htt
 			// headers := broker.InjectAMQPHeaders(amqpContext)
 
 			// publish a message
-			h.channel.PublishWithContext(ctx, broker.OrderPaidEvent, "", false, false, amqp.Publishing{
-				ContentType:  "application/json",
-				Body:         marshalledOrder,
-				DeliveryMode: amqp.Persistent,
-				// Headers:      headers,
-			})
+			// h.channel.PublishWithContext(ctx, broker.OrderPaidEvent, "", false, false, amqp.Publishing{
+			// 	ContentType:  "application/json",
+			// 	Body:         marshalledOrder,
+			// 	DeliveryMode: amqp.Persistent,
+			// 	// Headers:      headers,
+			// })
 
-			log.Println("Message published order.paid")
+			err = kafka.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
+			if err != nil {
+				log.Fatal(err)
+			}
+			data := []string{string(marshalledOrder)}
+			fmt.Println("Message published order.paid",data )
 		}
 	}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"common"
-	"common/broker"
 	"common/discovery"
 	"common/discovery/consul"
 	"context"
@@ -21,14 +20,15 @@ import (
 var (
 	serviceName = "payment"
 	grpcAddr = common.EnvString("GRPC_ADDR", "localhost:2001")
-	httpAddr = common.EnvString("GRPC_ADDR", "localhost:8081")
+	httpAddr = common.EnvString("HTTP_ADDR", "localhost:8081")
 	consulAddr = common.EnvString("CUNSL_ADDR","localhost:8500")
-	amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
-	amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
-	amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
-	amqpPort    = common.EnvString("RABBITMQ_PORT", "5672")
+	// amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
+	// amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
+	// amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
+	// amqpPort    = common.EnvString("RABBITMQ_PORT", "5672")
 	stripeKey    = common.EnvString("STRIPE_KEY", "sk_test_51Pcm84Rwz2fOefiNmTQSI0dSY5eUIMv84XF9lg862TBJ8SzTfAbC5MuIfn6pWB4vSpufr5FJxOdiqUmZ1fIUdj6G006GK0lcq1")
 	endpointStripeSecret = common.EnvString("STRIPE_ENDPOINT_SECRET", "whsec_32f21a7f8dc9d3af672bfab02ede0f6f22efd7fb91de868a3c47799d5855e706")
+	kafkaPort    = common.EnvString("KAFKA_PORT", "localhost:29092")
 )
 
 func main() {
@@ -59,20 +59,23 @@ func main() {
 	defer registry.DeRegister(ctx, instanceID, serviceName)
 
 	stripe.Key = stripeKey
+	// ch, close := broker.Connect(amqpUser,amqpPass, amqpHost, amqpPort)
+	// defer func () {
+	// 	close()
+	// 	ch.Close()
+	// } ()
 
-	ch, close := broker.Connect(amqpUser,amqpPass, amqpHost, amqpPort)
-	defer func () {
-		close()
-		ch.Close()
-	} ()
+	ch, err := ConnectToKafka(kafkaPort)
+	if err != nil {
+		log.Fatalf("failed to connect to kafka %v", err)
+	}
 
 	stripeProcessor:= stripeProcessor.NewProcessor()
 	gateway := gateway.NewGateway(registry)
 	svc := NewService(stripeProcessor, gateway)
-	amqpConsumer := NewConsumer(svc)
+	kafkaConsumer := NewConsumer(svc)
 
-
-	go amqpConsumer.Listen(ch)
+	go kafkaConsumer.Connect(serviceName, kafkaPort, 0)
 
 	mux := http.NewServeMux()
 	httpServer := NewPaymentHTTPHandler(ch)
@@ -89,12 +92,11 @@ func main() {
 
 	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		log.Fatalf("failed to listen %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
 	defer l.Close()
 
-	log.Println("GRPC server started at : ", grpcAddr)
-
+	log.Println("GRPC Server Started at ", grpcAddr)
 	if err := grpcServer.Serve(l); err != nil {
 		log.Fatal(err.Error())
 	}
