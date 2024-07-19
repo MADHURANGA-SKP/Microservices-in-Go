@@ -21,7 +21,7 @@ func NewProcessor() *Stripe {
 }
 
 func (s *Stripe) CreatePaymentLink(o *pb.Order) (string, error){
-	log.Printf("Creating payment link for order %v", o)
+	log.Printf("Creating payment link for order \n\n%v\n\n", o)
 
 	gatewaySuccessURL := fmt.Sprintf("%s/success.html", gatewayHTTPAddr)
 	gatewayCancelURL := fmt.Sprintf("%s/cancel.html", gatewayHTTPAddr)

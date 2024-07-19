@@ -29,7 +29,8 @@ func ConnectToKafka(broker string) (sarama.Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("conn", conn)
+	
+	fmt.Println("conn \n\n", conn)
 	return conn, nil
 }
 
@@ -63,13 +64,12 @@ func(o *consumer) Connect(topic, broker string, ptn int32){
 					log.Printf("failed to unmarshal order: %v", err)
 					continue
 				}
-
 				paymentLink, err := o.service.CreatePayments(context.Background(), &odr)
 				if err != nil {
 					log.Printf("failed to create payment: %v", err)
 					continue
 				}
-				log.Printf("payment link created %s",paymentLink)
+				log.Printf("payment link created \n\n :%s\n\n",paymentLink)
 			case <-sigchan:
 				fmt.Println("Interrupt is detected")
 				close(doneCh)

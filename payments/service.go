@@ -18,7 +18,7 @@ func NewService(processor processor.PaymentProcesser, gateway gateway.OrdersGate
 }
 
 func (s *Service) CreatePayments(ctx context.Context, o *pb.Order) (string, error){
-	fmt.Println("user--CreatePaymentLink-------------------------",o)
+	fmt.Printf("user--CreatePaymentLink-------------------------\n\n%s\n\n",o)
 	link, err := s.processor.CreatePaymentLink(o)
 	if err != nil {
 		return "", err
