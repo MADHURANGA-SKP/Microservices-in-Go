@@ -6,6 +6,7 @@ require (
 	github.com/IBM/sarama v1.43.2
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/rabbitmq/amqp091-go v1.10.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.53.0
 	go.opentelemetry.io/otel v1.28.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2

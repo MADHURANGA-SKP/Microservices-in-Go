@@ -5,11 +5,15 @@ import (
 	"common/discovery"
 	"common/discovery/consul"
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"orders/gateway"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -19,6 +23,9 @@ var (
 	grpcAddr = common.EnvString("GRPC_ADDR", "localhost:2000")
 	consulAddr = common.EnvString("CUNSL_ADDR","localhost:8500")
 	kafkaPort    = common.EnvString("KAFKA_PORT", "localhost:29092")
+	mongoUser   = common.EnvString("MONGO_DB_USER", "root")
+	mongoPass   = common.EnvString("MONGO_DB_PASS", "example")
+	mongoAddr   = common.EnvString("MONGO_DB_HOST", "localhost:27017")
 	// amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
 	// amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
 	// amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
@@ -56,23 +63,43 @@ func main() {
 		panic(err)
 	}
 
+	// mongo db conn
+	uri := fmt.Sprintf("mongodb://%s:%s@%s", mongoUser, mongoPass, mongoAddr)
+	mongoClient, err := connectToMongoDB(uri)
+	if err != nil {
+		logger.Fatal("failed to connect to mongo db", zap.Error(err))
+	}
+
 	grpcServer := grpc.NewServer()
 
 	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		log.Fatalf("failed to listen %v", err)
+		logger.Fatal("failed to listen", zap.Error(err))
 	}
 	defer l.Close()
 
-	store := NewStore()
 	gateway := gateway.NewGateway(registry)
+	store := NewStore(mongoClient)
 	svc := NewService(store, gateway)
+	svcWithLogging := NewLoggingMiddleware(svc)
 
-	NewGRPCHandler(grpcServer, svc) 
+	NewGRPCHandler(grpcServer, svcWithLogging) 
 
-	log.Println("GRPC server started at : ", grpcAddr)
+	logger.Info("Starting HTTP server", zap.String("port", grpcAddr))
 
 	if err := grpcServer.Serve(l); err != nil {
 		log.Fatal(err.Error())
 	}
+}
+
+func connectToMongoDB(uri string) (*mongo.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.Ping(ctx, readpref.Primary())
+	return client, err
 }

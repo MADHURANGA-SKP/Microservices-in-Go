@@ -1,7 +1,7 @@
 package main
 
 import (
-	"common"
+	common "common"
 	pb "common/api"
 	"context"
 	"log"
@@ -14,7 +14,16 @@ type Service struct {
 }
 
 func NewService(store OrderStore, gateway gateway.StockGateway) *Service {
-	return &Service{store,gateway}
+	return &Service{store, gateway}
+}
+
+func (s *Service) GetOrder(ctx context.Context, p *pb.GetOrderRequest) (*pb.Order, error) {
+	o, err := s.store.Get(ctx, p.OrderID, p.CustomerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return o.ToProto(), nil
 }
 
 func (s *Service) UpdateOrder(ctx context.Context, o *pb.Order) (*pb.Order, error) {
@@ -26,24 +35,25 @@ func (s *Service) UpdateOrder(ctx context.Context, o *pb.Order) (*pb.Order, erro
 	return o, nil
 }
 
-func (s *Service) GetOrder(ctx context.Context, p *pb.GetOrderRequest) (*pb.Order, error) {
-	return s.store.Get(ctx, p.OrderID, p.CustomerID)
-}
-
-func(s *Service) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest, items []*pb.Item) (*pb.Order, error) {
-	id , err := s.store.Create(ctx, p, items)
+func (s *Service) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest, items []*pb.Item) (*pb.Order, error) {
+	id, err := s.store.Create(ctx, Order{
+		CustomerID:  p.CustomerID,
+		Status:      "pending",
+		Items:       items,
+		PaymentLink: "",
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	o := &pb.Order{
-		ID: id,
+		ID:         id.Hex(),
 		CustomerID: p.CustomerID,
-		Status: "pennding",
-		Items: items,
+		Status:     "pending",
+		Items:      items,
 	}
 
-	return o,nil
+	return o, nil
 }
 
 func (s *Service) ValidateOrder(ctx context.Context, p *pb.CreateOrderRequest) ([]*pb.Item, error) {
@@ -68,13 +78,13 @@ func (s *Service) ValidateOrder(ctx context.Context, p *pb.CreateOrderRequest) (
 }
 
 func mergeItemsQuantities(items []*pb.ItemsWithQuantity) []*pb.ItemsWithQuantity {
-	merged := make([]*pb.ItemsWithQuantity,0)
+	merged := make([]*pb.ItemsWithQuantity, 0)
 
 	for _, item := range items {
 		found := false
-		for _, findItem := range merged {
-			if findItem.ID == item.ID {
-				findItem.Quantity += item.Quantity
+		for _, finalItem := range merged {
+			if finalItem.ID == item.ID {
+				finalItem.Quantity += item.Quantity
 				found = true
 				break
 			}
@@ -84,6 +94,6 @@ func mergeItemsQuantities(items []*pb.ItemsWithQuantity) []*pb.ItemsWithQuantity
 			merged = append(merged, item)
 		}
 	}
-	
+
 	return merged
 }

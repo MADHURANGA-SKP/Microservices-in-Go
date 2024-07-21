@@ -3,52 +3,59 @@ package main
 import (
 	pb "common/api"
 	"context"
-	"errors"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var orders = make([]*pb.Order, 0)
+const (
+	DbName   = "orders"
+	CollName = "orders"
+)
 
 type store struct {
-	
+	db *mongo.Client
 }
 
-func NewStore() *store {
-	return &store{}
+func NewStore(db *mongo.Client) *store {
+	return &store{db}
 }
 
-func (s *store) Create(ctx context.Context, p *pb.CreateOrderRequest, item []*pb.Item) (string, error) {
-	id := "42"
-	orders = append(orders, &pb.Order{
-		ID: id,
-		CustomerID: p.CustomerID,
-		Status: "pending",
-		Items: item,
-		PaymentLink: "",
-	})
+func (s *store) Create(ctx context.Context, o Order) (primitive.ObjectID, error) {
+	col := s.db.Database(DbName).Collection(CollName)
 
-	return id, nil
+	newOrder, err := col.InsertOne(ctx, o)
+
+	id := newOrder.InsertedID.(primitive.ObjectID)
+	return id, err
 }
 
-func (s *store) Get(ctx context.Context, id, customerID string) (*pb.Order, error){
-	 for _, o := range orders {
-		if o.ID == id && o.CustomerID == customerID {
-			return o, nil
-		}
-	 }
+func (s *store) Get(ctx context.Context, id, customerID string) (*Order, error) {
+	col := s.db.Database(DbName).Collection(CollName)
 
-	 return nil, errors.New("order not found")
+	oID, _ := primitive.ObjectIDFromHex(id)
+
+	var o Order
+	err := col.FindOne(ctx, bson.M{
+		"_id":        oID,
+		"customerID": customerID,
+	}).Decode(&o)
+
+	return &o, err
 }
 
 func (s *store) Update(ctx context.Context, id string, newOrder *pb.Order) error {
-	for i, order := range orders {
-		if order.ID == id {
-			orders[i].Status = newOrder.Status
-			orders[i].PaymentLink =newOrder.PaymentLink
+	col := s.db.Database(DbName).Collection(CollName)
 
+	oID, _ := primitive.ObjectIDFromHex(id)
 
-			return nil
-		}
-	}
+	_, err := col.UpdateOne(ctx,
+		bson.M{"_id": oID},
+		bson.M{"$set": bson.M{
+			"paymentLink": newOrder.PaymentLink,
+			"status":      newOrder.Status,
+		}})
 
-	return nil
+	return err
 }
