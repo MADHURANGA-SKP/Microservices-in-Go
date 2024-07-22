@@ -65,9 +65,10 @@ func main() {
 	// 	ch.Close()
 	// } ()
 
-	ch, err := ConnectToKafka(kafkaPort)
+	connect := consumer{}
+	ch, err := connect.Connect(serviceName, kafkaPort, 0)
 	if err != nil {
-		log.Fatalf("failed to connect to kafka %v", err)
+		panic(err)
 	}
 
 	stripeProcessor:= stripeProcessor.NewProcessor()
@@ -76,7 +77,7 @@ func main() {
 	
 
 	mux := http.NewServeMux()
-	httpServer := NewPaymentHTTPHandler(ch)
+	httpServer := NewPaymentHTTPHandler(&ch)
 	httpServer.registerRoutes(mux)
 
 	go func() {
