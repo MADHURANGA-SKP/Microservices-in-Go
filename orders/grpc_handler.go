@@ -7,17 +7,20 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/IBM/sarama"
 	"google.golang.org/grpc"
 )
 
 type grpcHandler struct {
 	pb.UnimplementedOrderServiceServer
 	service OrdersService
+	consumer sarama.Consumer 
 }
 
-func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService){
+func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService, consumer sarama.Consumer){
 	handler := &grpcHandler{
 		service: service,
+		consumer: consumer,
 	}
 
 	pb.RegisterOrderServiceServer(grpcServer, handler)

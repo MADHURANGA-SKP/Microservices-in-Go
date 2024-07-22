@@ -17,6 +17,7 @@ func NewLoggingMiddleware(next OrdersService) OrdersService {
 	return &LoggingMiddleware{next}
 }
 
+
 func (s *LoggingMiddleware) GetOrder(ctx context.Context, p *pb.GetOrderRequest) (*pb.Order, error) {
 	start := time.Now()
 	defer func() {

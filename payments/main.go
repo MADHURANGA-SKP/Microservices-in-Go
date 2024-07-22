@@ -73,9 +73,7 @@ func main() {
 	stripeProcessor:= stripeProcessor.NewProcessor()
 	gateway := gateway.NewGateway(registry)
 	svc := NewService(stripeProcessor, gateway)
-	kafkaConsumer := NewConsumer(svc)
-
-	go kafkaConsumer.Connect(serviceName, kafkaPort, 0)
+	
 
 	mux := http.NewServeMux()
 	httpServer := NewPaymentHTTPHandler(ch)
@@ -95,6 +93,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	defer l.Close()
+
+	kafkaConsumer := NewConsumer(svc)
+
+	go kafkaConsumer.Connect(serviceName, kafkaPort, 0)
 
 	log.Println("GRPC Server Started at ", grpcAddr)
 	if err := grpcServer.Serve(l); err != nil {
