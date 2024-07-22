@@ -12,16 +12,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/IBM/sarama"
+	confluentinc "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/webhook"
 )
 
 type PaymentHTTPHAndler struct{
-	consumer sarama.Consumer
+	consumer *confluentinc.Consumer
 }
 
-func NewPaymentHTTPHandler(consumer sarama.Consumer) *PaymentHTTPHAndler {
+func NewPaymentHTTPHandler(consumer *confluentinc.Consumer) *PaymentHTTPHAndler {
 	return &PaymentHTTPHAndler{consumer}
 }
 

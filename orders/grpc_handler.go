@@ -7,17 +7,17 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/IBM/sarama"
+	confluentinc "github.com/confluentinc/confluent-kafka-go/kafka"
 	"google.golang.org/grpc"
 )
 
 type grpcHandler struct {
 	pb.UnimplementedOrderServiceServer
 	service OrdersService
-	consumer sarama.Consumer 
+	consumer *confluentinc.Consumer
 }
 
-func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService, consumer sarama.Consumer){
+func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService, consumer *confluentinc.Consumer ){
 	handler := &grpcHandler{
 		service: service,
 		consumer: consumer,
@@ -54,7 +54,7 @@ func (h *grpcHandler) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest)
 		return nil, err
 	}
 
-	err = kafka.PushOrderToQueue(serviceName,kafkaPort, marshalledOrder)
+	err = kafka.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
 	if err != nil {
 		return nil, err
 	}

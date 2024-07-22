@@ -58,7 +58,8 @@ func main() {
 		}
 	}()
 
-	ch , err := ConnectToKafka(kafkaPort)
+	connect := consumer{}
+	ch , err := connect.Connect(serviceName, kafkaPort, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +84,7 @@ func main() {
 	svc := NewService(store, gateway)
 	svcWithLogging := NewLoggingMiddleware(svc)
 
-	NewGRPCHandler(grpcServer, svcWithLogging, ch) 
+	NewGRPCHandler(grpcServer, svcWithLogging, &ch) 
 
 	consumer := NewConsumer(svc)
 	go consumer.Connect(serviceName, kafkaPort, 0)
