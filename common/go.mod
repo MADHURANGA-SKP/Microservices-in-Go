@@ -3,7 +3,6 @@ module common
 go 1.22.1
 
 require (
-	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/rabbitmq/amqp091-go v1.10.0
@@ -21,6 +20,7 @@ replace github.com/armon/go-metrics => github.com/hashicorp/go-metrics v0.5.3
 
 require (
 	github.com/armon/go-metrics v0.5.3 // indirect
+	github.com/confluentinc/confluent-kafka-go/v2 v2.5.0 // indirect
 	github.com/fatih/color v1.17.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

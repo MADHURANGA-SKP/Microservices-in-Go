@@ -2,7 +2,7 @@ package main
 
 import (
 	pb "common/api"
-	"common/kafka"
+	kfk "common/kafka"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,16 +12,16 @@ import (
 	"os"
 	"time"
 
-	confluentinc "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/webhook"
 )
 
 type PaymentHTTPHAndler struct{
-	consumer *confluentinc.Consumer
+	consumer *kafka.Consumer
 }
 
-func NewPaymentHTTPHandler(consumer *confluentinc.Consumer) *PaymentHTTPHAndler {
+func NewPaymentHTTPHandler(consumer *kafka.Consumer) *PaymentHTTPHAndler {
 	return &PaymentHTTPHAndler{consumer}
 }
 
@@ -92,7 +92,7 @@ func (h *PaymentHTTPHAndler) handleCheckoutWebhook(w http.ResponseWriter, r *htt
 			// 	// Headers:      headers,
 			// })
 
-			err = kafka.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
+			err = kfk.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -2,22 +2,22 @@ package main
 
 import (
 	pb "common/api"
-	"common/kafka"
+	kfk "common/kafka"
 	"context"
 	"encoding/json"
 	"log"
 
-	confluentinc "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"google.golang.org/grpc"
 )
 
 type grpcHandler struct {
 	pb.UnimplementedOrderServiceServer
 	service OrdersService
-	consumer *confluentinc.Consumer
+	consumer *kafka.Consumer
 }
 
-func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService, consumer *confluentinc.Consumer ){
+func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService, consumer *kafka.Consumer ){
 	handler := &grpcHandler{
 		service: service,
 		consumer: consumer,
@@ -54,7 +54,7 @@ func (h *grpcHandler) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest)
 		return nil, err
 	}
 
-	err = kafka.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
+	err = kfk.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
 	if err != nil {
 		return nil, err
 	}

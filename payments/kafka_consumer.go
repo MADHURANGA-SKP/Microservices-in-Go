@@ -1,14 +1,9 @@
 package main
 
 import (
-	pb "common/api"
-	"context"
-	"encoding/json"
 	"fmt"
-	"log"
-	"os"
 
-	confluentinc "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 
@@ -20,73 +15,40 @@ func NewConsumer(service PaymentsService) *consumer {
 	return &consumer{service}
 }
 
-// func ConnectToKafka(broker string) (sarama.Consumer, error) {
-//     config := sarama.NewConfig()
-// 	config.Consumer.Return.Errors = true
-// 	conn, err := sarama.NewConsumer([]string{broker}, config)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-	
-// 	fmt.Println("conn \n\n", conn)
-// 	return conn, nil
-// }
-
-func(o *consumer) Connect(topic, broker string, ptn int32)  (confluentinc.Consumer, error){
-	c, err := confluentinc.NewConsumer(&confluentinc.ConfigMap{
+func(o *consumer) Connect(topic, broker string)  (*kafka.Consumer, error){
+	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": broker,
+		"group.id":         "orders",
+		"go.application.rebalance.enable": true,
 	})
-
 	if err != nil {
-		panic(err)
+		fmt.Printf("ann error occred ----- %v", err)
+		return nil, err
 	}
-
-	err = c.SubscribeTopics([]string{topic, "^aRegex.*[Tt]opic"}, nil)
-
+	
+    err = consumer.SubscribeTopics([]string{"orders"}, nil)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Failed to get subscribed details: %s", err)
 	}
+	
+	defer consumer.Close()
 
-	sigchan := make(chan os.Signal, 1)
-// 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+	fmt.Println("pulling...")
+	for {
+		message, err := consumer.ReadMessage(-1)
+		if err != nil {
+			fmt.Printf("pulling error: %v\n", err.Error())
+			return nil ,err
+		} else {
+			fmt.Printf("message %s: %s \n", message.TopicPartition, string(message.Value))
 
-	Count := 0
-	// Get signal for finish
-	doneCh := make(chan struct{})
-	// msgChan := make(chan  *sarama.ConsumerMessage)
-	go func() {
-		
-		for {
-			select {
-			case sig := <-sigchan:
-				fmt.Printf("Caught signal %v: terminating\n", sig)
-				close(doneCh)
-				return
-			default:
-				ev := c.Poll(100)
-				switch e := ev.(type) {
-				case *confluentinc.Message:
-					odr := pb.Order{}
-					if err := json.Unmarshal(e.Value, &odr); err != nil {
-						log.Printf("failed to unmarshal order: %v", err)
-						continue
-					}
-
-				paymentLink, err := o.service.CreatePayments(context.Background(), &odr)
-				if err != nil {
-					log.Printf("failed to create payment: %v", err)
-					continue
-				}
-				log.Printf("payment link created \n\n :%s\n\n",paymentLink)
-			case confluentinc.Error:
-				fmt.Fprintf(os.Stderr, "Error: %v\n", e)
+			for _, header := range message.Headers {
+				fmt.Printf("header %s - [%s:%s]\n", message.TopicPartition, header.Key, string(header.Value))
 			}
+
+			return consumer,nil
 		}
 	}
-	}()
-	<- doneCh
-	fmt.Println("Processed", Count, "")
 
-	return confluentinc.Consumer{}, nil
 }
 
