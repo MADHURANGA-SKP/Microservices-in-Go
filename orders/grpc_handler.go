@@ -5,6 +5,7 @@ import (
 	kfk "common/kafka"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -54,6 +55,7 @@ func (h *grpcHandler) CreateOrder(ctx context.Context, p *pb.CreateOrderRequest)
 		return nil, err
 	}
 
+	fmt.Println("marshalledOrder",marshalledOrder)
 	err = kfk.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
 	if err != nil {
 		return nil, err
