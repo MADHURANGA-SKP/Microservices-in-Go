@@ -91,13 +91,13 @@ func (h *PaymentHTTPHAndler) handleCheckoutWebhook(w http.ResponseWriter, r *htt
 			// 	DeliveryMode: amqp.Persistent,
 			// 	// Headers:      headers,
 			// })
-
+			data := []string{string(marshalledOrder)}
+			fmt.Println("Message published order.paid",data )
+			
 			err = kfk.PushOrderToQueue(serviceName, kafkaPort, marshalledOrder)
 			if err != nil {
 				log.Fatal(err)
 			}
-			data := []string{string(marshalledOrder)}
-			fmt.Println("Message published order.paid",data )
 		}
 	}
 

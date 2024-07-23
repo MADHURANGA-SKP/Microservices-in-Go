@@ -58,11 +58,11 @@ func main() {
 		}
 	}()
 
-	connect := consumer{}
-	ch , err := connect.Connect(serviceName, kafkaPort, 0)
+	ch, _ , err := ConnectToKafka(kafkaPort, serviceName)
 	if err != nil {
 		panic(err)
 	}
+
 
 	// mongo db conn
 	uri := fmt.Sprintf("mongodb://%s:%s@%s", mongoUser, mongoPass, mongoAddr)
@@ -87,7 +87,7 @@ func main() {
 	NewGRPCHandler(grpcServer, svcWithLogging, ch) 
 
 	consumer := NewConsumer(svc)
-	go consumer.Connect(serviceName, kafkaPort, 0)
+	go consumer.Connect(serviceName, kafkaPort)
 
 	logger.Info("Starting HTTP server", zap.String("port", grpcAddr))
 

@@ -65,8 +65,7 @@ func main() {
 	// 	ch.Close()
 	// } ()
 
-	connect := consumer{}
-	ch, err := connect.Connect(serviceName, kafkaPort)
+	ch, _ , err := ConnectToKafka(kafkaPort, serviceName)
 	if err != nil {
 		panic(err)
 	}
@@ -96,7 +95,7 @@ func main() {
 	defer l.Close()
 
 	kafkaConsumer := NewConsumer(svc)
-	go kafkaConsumer.Connect(serviceName, kafkaPort)
+	go kafkaConsumer.Connect("orders", kafkaPort)
 
 	log.Println("GRPC Server Started at ", grpcAddr)
 	if err := grpcServer.Serve(l); err != nil {

@@ -3,6 +3,7 @@ package kfk
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
@@ -51,33 +52,59 @@ import (
 // }
 
 func PushOrderToQueue(topic, broker string, message []byte) error {
-	p, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": broker})
-	
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": broker})
 	if err != nil {
 		fmt.Printf("Failed to create producer: %s\n", err)
 		os.Exit(1)
 	}
 
-	err = p.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value: []byte(message)},
-		nil, 
-	)
+	defer p.Close()
 
+	fmt.Println("producer ", p)
+
+	// Event handling
 	go func() {
 		for e := range p.Events() {
 			switch ev := e.(type) {
 			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
+				m := ev
+				if m.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
 				} else {
-					fmt.Printf("Successfully produced record to topic %s partition [%d] @ offset %v\n",
-						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
+					fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 				}
+			case kafka.Error:
+				fmt.Printf("Error: %v\n", ev)
+			default:
+				fmt.Printf("Ignored event: %s\n", ev)
 			}
 		}
 	}()
+
+	for {
+		fmt.Println("Producer message ", message)
+
+		err = p.Produce(&kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+			Value:          message,
+		}, nil)
+
+		if err != nil {
+			if err.(kafka.Error).Code() == kafka.ErrQueueFull {
+				// Producer queue is full, wait 1s for messages to be delivered then try again.
+				time.Sleep(time.Second)
+				continue
+			}
+			fmt.Printf("Failed to produce message: %v\n", err)
+			return err
+		}
+		break
+	}
+
+	// Flush and close the producer and the events channel
+	p.Flush(10000)
+	p.Close()
 
 	return err 
 }
