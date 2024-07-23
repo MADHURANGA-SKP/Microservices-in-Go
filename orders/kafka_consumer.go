@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	confluentinc "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 type consumer struct {
@@ -82,63 +82,42 @@ func NewConsumer(service OrdersService) *consumer {
 // 	}
 // }
 
-func(o *consumer) Connect(topic, broker string, ptn int32) (confluentinc.Consumer, error) {
-	c, err := confluentinc.NewConsumer(&confluentinc.ConfigMap{
+func(o *consumer) Connect(topic, broker string, ptn int32) (*kafka.Consumer, error) {
+	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": broker,
+		"group.id":         "orders",
+		"auto.offset.reset":    "smallest",
 	})
-
 	if err != nil {
-		panic(err)
+		fmt.Printf("Failed to create producer: %s", err)
+        os.Exit(1)
 	}
 
-	err = c.SubscribeTopics([]string{topic, "^aRegex.*[Tt]opic"}, nil)
+	var run bool
 
-	if err != nil {
-		panic(err)
-	}
-
-	sigchan := make(chan os.Signal, 1)
-// 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
-
-	Count := 0
-	// Get signal for finish
-	doneCh := make(chan struct{})
-	// msgChan := make(chan  *sarama.ConsumerMessage)
-	go func() {
-		
-		for {
-			select {
-			case sig := <-sigchan:
-				fmt.Printf("Caught signal %v: terminating\n", sig)
-				close(doneCh)
-				return
-			default:
-				ev := c.Poll(100)
-				switch e := ev.(type) {
-				case *confluentinc.Message:
-					odr := pb.Order{}
-					if err := json.Unmarshal(e.Value, &odr); err != nil {
-						log.Printf("failed to unmarshal order: %v", err)
-						continue
-					}
-
-					_, err := o.service.UpdateOrder(context.Background(), &odr)
-					if err != nil {
-						log.Printf("failed to update order: %v", err)
-						continue
-					}
-				case confluentinc.Error:
-					fmt.Fprintf(os.Stderr, "Error: %v\n", e)
-				}
+	for run {
+		ev := consumer.Poll(100)
+		switch e := ev.(type) {
+		case kafka.Error:
+			fmt.Fprintf(os.Stderr, "%% Error: %v\n", e)
+			run = false
+		case *kafka.Message:
+			odr := pb.Order{}
+			if err := json.Unmarshal(e.Value, &odr); err != nil {
+				log.Printf("failed to unmarshal order: %v", err)
+					continue
 			}
+			_, err := o.service.UpdateOrder(context.Background(), &odr)
+			if err != nil {
+					log.Printf("failed to update order: %v", err)
+					continue
+			}
+		case kafka.PartitionEOF:
+			fmt.Printf("%% Reached %v\n", e)
+		default:
+			fmt.Printf("Ignored %v\n", e)
 		}
-	}()
-
-	<- doneCh
-	fmt.Println("Processed", Count, "")
-	if err := c.Close(); err != nil {
-		panic(err)
 	}
 
-	return confluentinc.Consumer{}, nil
+	return consumer, nil
 }

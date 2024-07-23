@@ -1,9 +1,10 @@
-package kafka
+package kfk
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 // func ConnectProducer(brokers []string) (sarama.SyncProducer, error) {
@@ -50,38 +51,33 @@ import (
 // }
 
 func PushOrderToQueue(topic, broker string, message []byte) error {
-
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": broker})
+	p, err := kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers": broker})
+	
 	if err != nil {
-		panic(err)
+		fmt.Printf("Failed to create producer: %s\n", err)
+		os.Exit(1)
 	}
 
-	defer p.Close()
+	err = p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value: []byte(message)},
+		nil, 
+	)
 
-	// Delivery report handler for produced messages
 	go func() {
 		for e := range p.Events() {
 			switch ev := e.(type) {
 			case *kafka.Message:
 				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
+					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
 				} else {
-					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
+					fmt.Printf("Successfully produced record to topic %s partition [%d] @ offset %v\n",
+						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
 				}
 			}
 		}
 	}()
 
-	// Produce messages to topic (asynchronously)
-	for _, word := range []string{string(message)} {
-		p.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value:          []byte(word),
-		}, nil)
-	}
-
-	// Wait for message deliveries before shutting down
-	p.Flush(15 * 1000)
-
-	return err
+	return err 
 }

@@ -84,7 +84,7 @@ func main() {
 	svc := NewService(store, gateway)
 	svcWithLogging := NewLoggingMiddleware(svc)
 
-	NewGRPCHandler(grpcServer, svcWithLogging, &ch) 
+	NewGRPCHandler(grpcServer, svcWithLogging, ch) 
 
 	consumer := NewConsumer(svc)
 	go consumer.Connect(serviceName, kafkaPort, 0)
