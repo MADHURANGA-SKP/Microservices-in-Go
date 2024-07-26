@@ -1,23 +1,23 @@
 package main
 
 import (
-	"common"
+	common "common"
 	"common/discovery"
 	"common/discovery/consul"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"orders/gateway"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
-
 var (
 	serviceName = "orders"
 	grpcAddr = common.EnvString("GRPC_ADDR", "localhost:2000")
@@ -26,6 +26,8 @@ var (
 	mongoUser   = common.EnvString("MONGO_DB_USER", "root")
 	mongoPass   = common.EnvString("MONGO_DB_PASS", "example")
 	mongoAddr   = common.EnvString("MONGO_DB_HOST", "localhost:27017")
+	dbname = common.EnvString("MONGO_DB", "loggin")
+	collection = common.EnvString("MONGO_DB_C0LLECTION", "log")
 	// amqpUser    = common.EnvString("RABBITMQ_USER", "guest")
 	// amqpPass    = common.EnvString("RABBITMQ_PASS", "guest")
 	// amqpHost    = common.EnvString("RABBITMQ_HOST", "localhost")
@@ -64,7 +66,7 @@ func main() {
 	}
 
 
-	// mongo db conn
+	// mongo db con
 	uri := fmt.Sprintf("mongodb://%s:%s@%s", mongoUser, mongoPass, mongoAddr)
 	mongoClient, err := connectToMongoDB(uri)
 	if err != nil {
@@ -78,6 +80,21 @@ func main() {
 		logger.Fatal("failed to listen", zap.Error(err))
 	}
 	defer l.Close()
+
+	uri2 := fmt.Sprintf("mongodb://%s:%s@%s", mongoUser, mongoPass, mongoAddr)
+	mongoCrore, err := NewMongoCore(uri2, dbname, collection, zapcore.InfoLevel)
+	if err != nil {
+		panic(err)
+	}
+
+	core := zapcore.NewTee(
+		mongoCrore, 
+		zapcore.NewCore(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()), zapcore.AddSync(zapcore.Lock(os.Stdout)), zapcore.InfoLevel),
+	)
+
+	log := zap.New(core)
+
+	zap.ReplaceGlobals(log)
 
 	gateway := gateway.NewGateway(registry)
 	store := NewStore(mongoClient)

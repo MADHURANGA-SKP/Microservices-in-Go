@@ -5,7 +5,7 @@ import (
 	pb "common/api"
 	"errors"
 	"fmt"
-	"gatway/gateway"
+	"gateway/gateway"
 	"net/http"
 
 	"google.golang.org/grpc/codes"

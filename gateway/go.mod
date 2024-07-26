@@ -1,4 +1,4 @@
-module gatway
+module gateway
 
 go 1.22.1
 

@@ -5,7 +5,7 @@ import (
 	"common/discovery"
 	"common/discovery/consul"
 	"context"
-	"gatway/gateway"
+	"gateway/gateway"
 	"log"
 	"net/http"
 	"time"
